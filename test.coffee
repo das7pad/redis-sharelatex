@@ -131,6 +131,9 @@ describe "index", ->
 			@client4 = @redis.createClient cluster: @cluster, reuse: false
 			@client5 = @redis.createClient cluster: @cluster, reuse: false
 
+			@client6 = @redis.createClient cluster: @cluster, reuse: false
+			@client7 = @redis.createClient cluster: @cluster, reuse: false
+
 		it "should reuse the client given same key", ->
 			expect(@client1).to.equal(@client2)
 
@@ -141,3 +144,10 @@ describe "index", ->
 			expect(@client1).to.not.equal(@client4)
 			expect(@client3).to.not.equal(@client4)
 			expect(@client4).to.not.equal(@client5)
+
+		it "should not reuse a client with reuse unspecified", ->
+			expect(@client1).to.not.equal(@client6)
+			expect(@client3).to.not.equal(@client6)
+			expect(@client4).to.not.equal(@client6)
+			expect(@client5).to.not.equal(@client6)
+			expect(@client6).to.not.equal(@client7)
