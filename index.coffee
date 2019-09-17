@@ -2,10 +2,16 @@ _ = require("underscore")
 async = require "async"
 
 module.exports = RedisSharelatex =
-	createClient: (opts = {port: 6379, host: "localhost"})->
+	clients: {}
+
+	createClient: (opts = {port: 6379, host: "localhost", reuse: false})->
 		if !opts.retry_max_delay?
 			opts.retry_max_delay = 5000 # ms
-		
+
+		if opts.reuse
+			client = RedisSharelatex.clients[opts.reuse]
+			return client if client
+
 		if opts.endpoints?
 			standardOpts = _.clone(opts)
 			delete standardOpts.endpoints
@@ -26,6 +32,9 @@ module.exports = RedisSharelatex =
 			client = new ioredis(standardOpts)
 			RedisSharelatex._monkeyPatchIoredisExec(client)
 			client.healthCheck = RedisSharelatex.singleInstanceHealthCheckBuilder(client)
+
+		if opts.reuse
+			RedisSharelatex.clients[opts.reuse] = client
 		return client
 	
 	HEARTBEAT_TIMEOUT: 2000
