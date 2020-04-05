@@ -6,6 +6,7 @@
   "author": "ShareLaTeX",
   "license": "ISC",
   "dependencies": {
+    "@overleaf/o-error": "^2.1.0",
     "coffee-script": "1.8.0",
     "ioredis": "~4.16.1",
     "redis-sentinel": "0.1.1",

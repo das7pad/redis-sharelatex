@@ -2,6 +2,12 @@ _ = require("underscore")
 os = require('os')
 crypto = require('crypto')
 
+{
+	RedisHealthCheckTimedOut,
+	RedisHealthCheckWriteError,
+	RedisHealthCheckVerifyError,
+} = require('./Errors')
+
 # generate unique values for health check
 HOST = os.hostname()
 PID = process.pid
@@ -57,33 +63,56 @@ module.exports = RedisSharelatex =
 		callback = _.once(callback)
 		# check the redis connection by storing and retrieving a unique key/value pair
 		uniqueToken = "host=#{HOST}:pid=#{PID}:random=#{RND}:time=#{Date.now()}:count=#{COUNT++}"
+
+		# o-error context
+		context = {
+			uniqueToken,
+			clusterStartupNodes: client.startupNodes,
+			clientOptions: client.options,
+			stage: 'add context for a timeout'
+		}
+
 		timer = setTimeout () ->
-			error = new Error("redis client health check timed out #{client?.options?.host}")
-			console.error {
-				err: error,
-				key: client.options?.key # only present for cluster
-				clientOptions: client.options
-				uniqueToken: uniqueToken
-			}, "client timed out"
-			callback(error)
+			callback(new RedisHealthCheckTimedOut({
+				message: 'timeout', info: context
+			}))
 		, RedisSharelatex.HEARTBEAT_TIMEOUT
+
 		healthCheckKey = "_redis-wrapper:healthCheckKey:{#{uniqueToken}}"
 		healthCheckValue = "_redis-wrapper:healthCheckValue:{#{uniqueToken}}"
 		# set the unique key/value pair
+		context.stage = 'write'
 		multi = client.multi()
 		multi.set healthCheckKey, healthCheckValue, "EX", 60
 		multi.exec (err, reply) ->
 			if err?
 				clearTimeout timer
-				return callback(err)
+				return callback(new RedisHealthCheckWriteError({
+					message: 'write multi errored', info: context
+				}).withCause(err))
+			if not reply or reply[0] is not 'OK'
+				clearTimeout timer
+				context.reply = reply
+				return callback(new RedisHealthCheckWriteError({
+					message: 'write failed', info: context
+				}))
+
 			# check that we can retrieve the unique key/value pair
+			context.stage = 'verify'
 			multi = client.multi()
 			multi.get healthCheckKey
 			multi.del healthCheckKey
 			multi.exec (err, reply) ->
 				clearTimeout timer
-				return callback(err) if err?
-				return callback(new Error("bad response from redis health check")) if reply?[0] isnt healthCheckValue or reply?[1] isnt 1
+				if err?
+					return callback(new RedisHealthCheckVerifyError({
+						message: 'get/del multi errored', info: context
+					}).withCause(err))
+				if not reply or reply[0] isnt healthCheckValue or reply[1] isnt 1
+					context.reply = reply
+					return callback(new RedisHealthCheckVerifyError({
+						message: 'read/delete failed', info: context
+					}))
 				return callback()
 
 	_monkeyPatchIoredisExec: (client) ->
