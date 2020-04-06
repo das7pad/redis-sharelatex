@@ -1,0 +1,22 @@
+{
+  "extends": [
+    "standard",
+    "prettier",
+    "prettier/standard"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2017
+  },
+  "env": {
+    "node": true
+  },
+  "overrides": [
+    {
+      "files": ["index.js"],
+      "rules": {
+        // don't allow console.log in backend code
+        "no-console": "error"
+      }
+    }
+  ]
+}
