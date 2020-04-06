@@ -15,15 +15,9 @@ RND = crypto.randomBytes(4).toString('hex')
 COUNT = 0
 
 module.exports = RedisSharelatex =
-	clients: {}
-
-	createClient: (opts = {port: 6379, host: "localhost", reuse: false})->
+	createClient: (opts = {port: 6379, host: "localhost"})->
 		if !opts.retry_max_delay?
 			opts.retry_max_delay = 5000 # ms
-
-		if opts.reuse
-			client = RedisSharelatex.clients[opts.reuse]
-			return client if client
 
 		if opts.endpoints?
 			standardOpts = _.clone(opts)
@@ -46,8 +40,6 @@ module.exports = RedisSharelatex =
 			RedisSharelatex._monkeyPatchIoredisExec(client)
 			client.healthCheck = RedisSharelatex.singleInstanceHealthCheckBuilder(client)
 
-		if opts.reuse
-			RedisSharelatex.clients[opts.reuse] = client
 		return client
 	
 	HEARTBEAT_TIMEOUT: 2000

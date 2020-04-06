@@ -123,31 +123,3 @@ describe "index", ->
 			@multi.exec @callback
 			@callback.calledWith("error").should.equal true
 
-	describe "client reuse", ->
-		beforeEach ->
-			@client1 = @redis.createClient cluster: @cluster, reuse: 'someKey'
-			@client2 = @redis.createClient cluster: @cluster, reuse: 'someKey'
-			@client3 = @redis.createClient cluster: @cluster, reuse: 'otherKey'
-			@client4 = @redis.createClient cluster: @cluster, reuse: false
-			@client5 = @redis.createClient cluster: @cluster, reuse: false
-
-			@client6 = @redis.createClient cluster: @cluster, reuse: false
-			@client7 = @redis.createClient cluster: @cluster, reuse: false
-
-		it "should reuse the client given same key", ->
-			expect(@client1).to.equal(@client2)
-
-		it "should not reuse the client given a different key", ->
-			expect(@client1).to.not.equal(@client3)
-
-		it "should not reuse a client with reuse disabled", ->
-			expect(@client1).to.not.equal(@client4)
-			expect(@client3).to.not.equal(@client4)
-			expect(@client4).to.not.equal(@client5)
-
-		it "should not reuse a client with reuse unspecified", ->
-			expect(@client1).to.not.equal(@client6)
-			expect(@client3).to.not.equal(@client6)
-			expect(@client4).to.not.equal(@client6)
-			expect(@client5).to.not.equal(@client6)
-			expect(@client6).to.not.equal(@client7)
