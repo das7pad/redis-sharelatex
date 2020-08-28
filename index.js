@@ -83,7 +83,7 @@ async function runCheck(client, uniqueToken, context) {
 }
 
 function unwrapMultiResult(result, callback) {
-  // ioredis exec returns an results like:
+  // ioredis exec returns a results like:
   // [ [null, 42], [null, "foo"] ]
   // where the first entries in each 2-tuple are
   // presumably errors for each individual command,
