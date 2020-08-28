@@ -19,7 +19,7 @@ const RND = crypto.randomBytes(4).toString('hex')
 let COUNT = 0
 
 function healthCheckBuilder(client) {
-  return callback => healthCheck(client, callback)
+  return (callback) => healthCheck(client, callback)
 }
 
 function healthCheck(client, callback) {
