@@ -132,7 +132,7 @@ function monkeyPatchIoRedisExec(client) {
 
 module.exports = {
   createClient: (opts = {}) => {
-    const standardOpts = require('lodash.clone')(opts)
+    const standardOpts = Object.assign({}, opts)
     delete standardOpts.key_schema
 
     let client
