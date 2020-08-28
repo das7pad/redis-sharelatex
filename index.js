@@ -24,7 +24,6 @@ function healthCheck(client, callback) {
 
   // o-error context
   const context = {
-    timeout: HEARTBEAT_TIMEOUT,
     uniqueToken,
     stage: 'add context for a timeout'
   }
@@ -33,6 +32,7 @@ function healthCheck(client, callback) {
   Promise.race([
     new Promise((resolve, reject) => {
       healthCheckDeadline = setTimeout(() => {
+        context.timeout = HEARTBEAT_TIMEOUT
         reject(new RedisHealthCheckTimedOut('timeout'))
       }, HEARTBEAT_TIMEOUT)
     }),
