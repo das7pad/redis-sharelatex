@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const os = require('os')
 
-const ioredis = require('ioredis')
+const IORedis = require('ioredis')
 const lodashOnce = require('lodash.once')
 
 const {
@@ -138,9 +138,9 @@ module.exports = {
     let client
     if (opts.cluster) {
       delete standardOpts.cluster
-      client = new ioredis.Cluster(opts.cluster, standardOpts)
+      client = new IORedis.Cluster(opts.cluster, standardOpts)
     } else {
-      client = new ioredis(standardOpts)
+      client = new IORedis(standardOpts)
     }
     monkeyPatchIoRedisExec(client)
     client.healthCheck = healthCheckBuilder(client)
