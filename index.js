@@ -61,7 +61,7 @@ async function runCheck(client, uniqueToken, context) {
   multi = client.multi()
   multi.set(healthCheckKey, healthCheckValue, 'EX', 60)
   reply = await multi.exec().catch((err) => {
-    throw new RedisHealthCheckWriteError('write multi errored').withCause(err)
+    throw new RedisHealthCheckWriteError('multi errored').withCause(err)
   })
   if (!reply || reply[0] !== 'OK') {
     context.reply = reply
@@ -74,9 +74,7 @@ async function runCheck(client, uniqueToken, context) {
   multi.get(healthCheckKey)
   multi.del(healthCheckKey)
   reply = await multi.exec().catch((err) => {
-    throw new RedisHealthCheckVerifyError('get/del multi errored').withCause(
-      err
-    )
+    throw new RedisHealthCheckVerifyError('multi errored').withCause(err)
   })
   if (!reply || reply[0] !== healthCheckValue || reply[1] !== 1) {
     context.reply = reply
