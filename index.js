@@ -1,5 +1,6 @@
 const crypto = require('crypto')
 const os = require('os')
+const { promisify } = require('util')
 
 const IORedis = require('ioredis')
 const lodashOnce = require('lodash.once')
@@ -102,30 +103,45 @@ function healthCheck(client, callback) {
   })
 }
 
+function unwrapMultiResult(result, callback) {
+  // ioredis exec returns an results like:
+  // [ [null, 42], [null, "foo"] ]
+  // where the first entries in each 2-tuple are
+  // presumably errors for each individual command,
+  // and the second entry is the result. We need to transform
+  // this into the same result as the old redis driver:
+  // [ 42, "foo" ]
+  //
+  // Basically reverse:
+  // https://github.com/luin/ioredis/blob/v4.17.3/lib/utils/index.ts#L75-L92
+  const filteredResult = []
+  for (const entry of result || []) {
+    if (entry[0]) {
+      return callback(entry[0])
+    } else {
+      filteredResult.push(entry[1])
+    }
+  }
+  callback(null, filteredResult)
+}
+const unwrapMultiResultPromisified = promisify(unwrapMultiResult)
+
 function monkeyPatchIoRedisExec(client) {
   const _multi = client.multi
   client.multi = () => {
     const multi = _multi.apply(client, arguments)
     const _exec = multi.exec
-    multi.exec = (callback = () => {}) =>
-      _exec.call(multi, (error, result) => {
-        // ioredis exec returns an results like:
-        // [ [null, 42], [null, "foo"] ]
-        // where the first entries in each 2-tuple are
-        // presumably errors for each individual command,
-        // and the second entry is the result. We need to transform
-        // this into the same result as the old redis driver:
-        // [ 42, "foo" ]
-        const filteredResult = []
-        for (const entry of result || []) {
-          if (entry[0]) {
-            return callback(entry[0])
-          } else {
-            filteredResult.push(entry[1])
-          }
-        }
-        callback(error, filteredResult)
-      })
+    multi.exec = (callback) => {
+      if (callback) {
+        _exec.call(multi, (error, result) => {
+          // The command can fail all-together due to syntax errors
+          if (error) return callback(error)
+          unwrapMultiResult(result, callback)
+        })
+      } else {
+        return _exec.call(multi).then(unwrapMultiResultPromisified)
+      }
+    }
     return multi
   }
 }
