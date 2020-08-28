@@ -116,15 +116,15 @@ function monkeyPatchIoRedisExec(client) {
         // and the second entry is the result. We need to transform
         // this into the same result as the old redis driver:
         // [ 42, "foo" ]
-        const filtered_result = []
+        const filteredResult = []
         for (const entry of result || []) {
           if (entry[0]) {
             return callback(entry[0])
           } else {
-            filtered_result.push(entry[1])
+            filteredResult.push(entry[1])
           }
         }
-        callback(error, filtered_result)
+        callback(error, filteredResult)
       })
     return multi
   }
