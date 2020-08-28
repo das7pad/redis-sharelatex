@@ -3,7 +3,6 @@ const os = require('os')
 const { promisify } = require('util')
 
 const IORedis = require('ioredis')
-const lodashOnce = require('lodash.once')
 
 const {
   RedisHealthCheckTimedOut,
@@ -19,13 +18,7 @@ const PID = process.pid
 const RND = crypto.randomBytes(4).toString('hex')
 let COUNT = 0
 
-function healthCheckBuilder(client) {
-  return (callback) => healthCheck(client, callback)
-}
-
 function healthCheck(client, callback) {
-  callback = lodashOnce(callback)
-
   // check the redis connection by storing and retrieving a unique key/value pair
   const uniqueToken = `host=${HOST}:pid=${PID}:random=${RND}:time=${Date.now()}:count=${COUNT++}`
 
@@ -33,74 +26,62 @@ function healthCheck(client, callback) {
   const context = {
     timeout: HEARTBEAT_TIMEOUT,
     uniqueToken,
-    clusterStartupNodes: client.startupNodes,
-    clientOptions: client.options,
     stage: 'add context for a timeout'
   }
 
-  const timer = setTimeout(() => {
-    callback(
-      new RedisHealthCheckTimedOut({
-        message: 'timeout',
-        info: context
-      })
-    )
-  }, HEARTBEAT_TIMEOUT)
-
-  const healthCheckKey = `_redis-wrapper:healthCheckKey:{${uniqueToken}}`
-  const healthCheckValue = `_redis-wrapper:healthCheckValue:{${uniqueToken}}`
-  // set the unique key/value pair
-  context.stage = 'write'
-  let multi = client.multi()
-  multi.set(healthCheckKey, healthCheckValue, 'EX', 60)
-  multi.exec((err, reply) => {
-    if (err) {
-      clearTimeout(timer)
-      return callback(
-        new RedisHealthCheckWriteError({
-          message: 'write multi errored',
-          info: context
-        }).withCause(err)
-      )
-    }
-    if (!reply || reply[0] !== 'OK') {
-      clearTimeout(timer)
-      context.reply = reply
-      return callback(
-        new RedisHealthCheckWriteError({
-          message: 'write failed',
-          info: context
-        })
-      )
-    }
-
-    // check that we can retrieve the unique key/value pair
-    context.stage = 'verify'
-    multi = client.multi()
-    multi.get(healthCheckKey)
-    multi.del(healthCheckKey)
-    multi.exec((err, reply) => {
-      clearTimeout(timer)
-      if (err) {
-        return callback(
-          new RedisHealthCheckVerifyError({
-            message: 'get/del multi errored',
-            info: context
-          }).withCause(err)
-        )
-      }
-      if (!reply || reply[0] !== healthCheckValue || reply[1] !== 1) {
-        context.reply = reply
-        return callback(
-          new RedisHealthCheckVerifyError({
-            message: 'read/delete failed',
-            info: context
-          })
-        )
-      }
+  let healthCheckDeadline
+  Promise.race([
+    new Promise((resolve, reject) => {
+      healthCheckDeadline = setTimeout(() => {
+        reject(new RedisHealthCheckTimedOut('timeout'))
+      }, HEARTBEAT_TIMEOUT)
+    }),
+    runCheck(client, uniqueToken, context)
+  ])
+    .finally(() => {
+      clearTimeout(healthCheckDeadline)
+    })
+    .then(() => {
       callback()
     })
+    .catch((err) => {
+      // attach the o-error context
+      err.info = context
+      callback(err)
+    })
+}
+
+async function runCheck(client, uniqueToken, context) {
+  let reply, multi
+  const healthCheckKey = `_redis-wrapper:healthCheckKey:{${uniqueToken}}`
+  const healthCheckValue = `_redis-wrapper:healthCheckValue:{${uniqueToken}}`
+
+  // set the unique key/value pair
+  context.stage = 'write'
+  multi = client.multi()
+  multi.set(healthCheckKey, healthCheckValue, 'EX', 60)
+  reply = await multi.exec().catch((err) => {
+    throw new RedisHealthCheckWriteError('write multi errored').withCause(err)
   })
+  if (!reply || reply[0] !== 'OK') {
+    context.reply = reply
+    throw new RedisHealthCheckWriteError('write failed')
+  }
+
+  // check that we can retrieve the unique key/value pair
+  context.stage = 'verify'
+  multi = client.multi()
+  multi.get(healthCheckKey)
+  multi.del(healthCheckKey)
+  reply = await multi.exec().catch((err) => {
+    throw new RedisHealthCheckVerifyError('get/del multi errored').withCause(
+      err
+    )
+  })
+  if (!reply || reply[0] !== healthCheckValue || reply[1] !== 1) {
+    context.reply = reply
+    throw new RedisHealthCheckVerifyError('read/delete failed')
+  }
 }
 
 function unwrapMultiResult(result, callback) {
@@ -159,7 +140,7 @@ module.exports = {
       client = new IORedis(standardOpts)
     }
     monkeyPatchIoRedisExec(client)
-    client.healthCheck = healthCheckBuilder(client)
+    client.healthCheck = (callback) => healthCheck(client, callback)
     return client
   }
 }
