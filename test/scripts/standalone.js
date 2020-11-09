@@ -1,7 +1,7 @@
 // execute this script with a redis container running to test the health check
 // starting and stopping redis with this script running is a good test
 
-const redis = require('../')
+const redis = require('../../')
 
 const rclient = redis.createClient({})
 
