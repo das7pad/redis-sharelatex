@@ -17,7 +17,7 @@ const rclient = redis.createClient({
 })
 
 setInterval(() => {
-  rclient.healthCheck(err => {
+  rclient.healthCheck((err) => {
     if (err) {
       console.error('HEALTH CHECK FAILED', JSON.stringify(err, null, 2))
     } else {
