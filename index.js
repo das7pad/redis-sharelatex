@@ -33,18 +33,13 @@ async function healthCheck(client) {
     new Promise((resolve, reject) => {
       healthCheckDeadline = setTimeout(() => {
         context.timeout = HEARTBEAT_TIMEOUT
-        reject(new RedisHealthCheckTimedOut('timeout'))
+        reject(new RedisHealthCheckTimedOut('timeout', context))
       }, HEARTBEAT_TIMEOUT)
     }),
     runCheck(client, uniqueToken, context).finally(() =>
       clearTimeout(healthCheckDeadline)
     )
   ])
-    .catch((err) => {
-      // attach the o-error context
-      err.info = context
-      throw err
-    })
 }
 
 async function runCheck(client, uniqueToken, context) {
@@ -56,11 +51,11 @@ async function runCheck(client, uniqueToken, context) {
   const writeAck = await client
     .set(healthCheckKey, healthCheckValue, 'EX', 60)
     .catch((err) => {
-      throw new RedisHealthCheckWriteError('write errored').withCause(err)
+      throw new RedisHealthCheckWriteError('write errored', context, err)
     })
   if (writeAck !== 'OK') {
     context.writeAck = writeAck
-    throw new RedisHealthCheckWriteError('write failed')
+    throw new RedisHealthCheckWriteError('write failed', context)
   }
 
   // check that we can retrieve the unique key/value pair
@@ -71,14 +66,12 @@ async function runCheck(client, uniqueToken, context) {
     .del(healthCheckKey)
     .exec()
     .catch((err) => {
-      throw new RedisHealthCheckVerifyError('read/delete errored').withCause(
-        err
-      )
+      throw new RedisHealthCheckVerifyError('read/delete errored', context, err)
     })
   if (roundTrippedHealthCheckValue !== healthCheckValue || deleteAck !== 1) {
     context.roundTrippedHealthCheckValue = roundTrippedHealthCheckValue
     context.deleteAck = deleteAck
-    throw new RedisHealthCheckVerifyError('read/delete failed')
+    throw new RedisHealthCheckVerifyError('read/delete failed', context)
   }
 }
 
