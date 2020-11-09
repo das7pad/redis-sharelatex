@@ -36,11 +36,10 @@ function healthCheck(client, callback) {
         reject(new RedisHealthCheckTimedOut('timeout'))
       }, HEARTBEAT_TIMEOUT)
     }),
-    runCheck(client, uniqueToken, context)
-  ])
-    .finally(() => {
+    runCheck(client, uniqueToken, context).finally(() =>
       clearTimeout(healthCheckDeadline)
-    })
+    )
+  ])
     .then(() => {
       callback()
     })
