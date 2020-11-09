@@ -18,7 +18,7 @@ const PID = process.pid
 const RND = crypto.randomBytes(4).toString('hex')
 let COUNT = 0
 
-function healthCheck(client, callback) {
+async function healthCheck(client) {
   // check the redis connection by storing and retrieving a unique key/value pair
   const uniqueToken = `host=${HOST}:pid=${PID}:random=${RND}:time=${Date.now()}:count=${COUNT++}`
 
@@ -29,7 +29,7 @@ function healthCheck(client, callback) {
   }
 
   let healthCheckDeadline
-  Promise.race([
+  await Promise.race([
     new Promise((resolve, reject) => {
       healthCheckDeadline = setTimeout(() => {
         context.timeout = HEARTBEAT_TIMEOUT
@@ -40,13 +40,10 @@ function healthCheck(client, callback) {
       clearTimeout(healthCheckDeadline)
     )
   ])
-    .then(() => {
-      callback()
-    })
     .catch((err) => {
       // attach the o-error context
       err.info = context
-      callback(err)
+      throw err
     })
 }
 
@@ -141,7 +138,15 @@ module.exports = {
       client = new IORedis(standardOpts)
     }
     monkeyPatchIoRedisExec(client)
-    client.healthCheck = (callback) => healthCheck(client, callback)
+    client.healthCheck = (callback) => {
+      if (callback) {
+        // callback based invocation
+        healthCheck(client).then(callback).catch(callback)
+      } else {
+        // Promise based invocation
+        return healthCheck(client)
+      }
+    }
     return client
   }
 }
