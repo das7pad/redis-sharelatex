@@ -100,7 +100,7 @@ const unwrapMultiResultPromisified = promisify(unwrapMultiResult)
 
 function monkeyPatchIoRedisExec(client) {
   const _multi = client.multi
-  client.multi = () => {
+  client.multi = function () {
     const multi = _multi.apply(client, arguments)
     const _exec = multi.exec
     multi.exec = (callback) => {
