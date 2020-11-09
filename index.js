@@ -94,11 +94,11 @@ function unwrapMultiResult(result, callback) {
   // Basically reverse:
   // https://github.com/luin/ioredis/blob/v4.17.3/lib/utils/index.ts#L75-L92
   const filteredResult = []
-  for (const entry of result || []) {
-    if (entry[0]) {
-      return callback(entry[0])
+  for (const [err, value] of result || []) {
+    if (err) {
+      return callback(err)
     } else {
-      filteredResult.push(entry[1])
+      filteredResult.push(value)
     }
   }
   callback(null, filteredResult)
