@@ -63,7 +63,7 @@ async function runCheck(client, uniqueToken, context) {
   reply = await multi.exec().catch((err) => {
     throw new RedisHealthCheckWriteError('multi errored').withCause(err)
   })
-  if (!reply || reply[0] !== 'OK') {
+  if (reply[0] !== 'OK') {
     context.reply = reply
     throw new RedisHealthCheckWriteError('write failed')
   }
@@ -76,7 +76,7 @@ async function runCheck(client, uniqueToken, context) {
   reply = await multi.exec().catch((err) => {
     throw new RedisHealthCheckVerifyError('multi errored').withCause(err)
   })
-  if (!reply || reply[0] !== healthCheckValue || reply[1] !== 1) {
+  if (reply[0] !== healthCheckValue || reply[1] !== 1) {
     context.reply = reply
     throw new RedisHealthCheckVerifyError('read/delete failed')
   }
