@@ -51,28 +51,27 @@ function healthCheck(client, callback) {
 }
 
 async function runCheck(client, uniqueToken, context) {
-  let reply, multi
   const healthCheckKey = `_redis-wrapper:healthCheckKey:{${uniqueToken}}`
   const healthCheckValue = `_redis-wrapper:healthCheckValue:{${uniqueToken}}`
 
   // set the unique key/value pair
   context.stage = 'write'
-  multi = client.multi()
-  multi.set(healthCheckKey, healthCheckValue, 'EX', 60)
-  reply = await multi.exec().catch((err) => {
-    throw new RedisHealthCheckWriteError('write errored').withCause(err)
-  })
-  if (reply[0] !== 'OK') {
-    context.reply = reply
+  const writeAck = await client
+    .set(healthCheckKey, healthCheckValue, 'EX', 60)
+    .catch((err) => {
+      throw new RedisHealthCheckWriteError('write errored').withCause(err)
+    })
+  if (writeAck !== 'OK') {
+    context.writeAck = writeAck
     throw new RedisHealthCheckWriteError('write failed')
   }
 
   // check that we can retrieve the unique key/value pair
   context.stage = 'verify'
-  multi = client.multi()
+  const multi = client.multi()
   multi.get(healthCheckKey)
   multi.del(healthCheckKey)
-  reply = await multi.exec().catch((err) => {
+  const reply = await multi.exec().catch((err) => {
     throw new RedisHealthCheckVerifyError('read/delete errored').withCause(err)
   })
   if (reply[0] !== healthCheckValue || reply[1] !== 1) {
