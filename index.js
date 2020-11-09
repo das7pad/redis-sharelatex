@@ -112,12 +112,14 @@ function monkeyPatchIoRedisExec(client) {
     const _exec = multi.exec
     multi.exec = (callback) => {
       if (callback) {
+        // callback based invocation
         _exec.call(multi, (error, result) => {
           // The command can fail all-together due to syntax errors
           if (error) return callback(error)
           unwrapMultiResult(result, callback)
         })
       } else {
+        // Promise based invocation
         return _exec.call(multi).then(unwrapMultiResultPromisified)
       }
     }
