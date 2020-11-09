@@ -68,14 +68,19 @@ async function runCheck(client, uniqueToken, context) {
 
   // check that we can retrieve the unique key/value pair
   context.stage = 'verify'
-  const multi = client.multi()
-  multi.get(healthCheckKey)
-  multi.del(healthCheckKey)
-  const reply = await multi.exec().catch((err) => {
-    throw new RedisHealthCheckVerifyError('read/delete errored').withCause(err)
-  })
-  if (reply[0] !== healthCheckValue || reply[1] !== 1) {
-    context.reply = reply
+  const [roundTrippedHealthCheckValue, deleteAck] = await client
+    .multi()
+    .get(healthCheckKey)
+    .del(healthCheckKey)
+    .exec()
+    .catch((err) => {
+      throw new RedisHealthCheckVerifyError('read/delete errored').withCause(
+        err
+      )
+    })
+  if (roundTrippedHealthCheckValue !== healthCheckValue || deleteAck !== 1) {
+    context.roundTrippedHealthCheckValue = roundTrippedHealthCheckValue
+    context.deleteAck = deleteAck
     throw new RedisHealthCheckVerifyError('read/delete failed')
   }
 }
