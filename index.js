@@ -3,7 +3,7 @@ const crypto = require('crypto')
 const os = require('os')
 const { promisify } = require('util')
 
-const IORedis = require('ioredis')
+const Redis = require('ioredis')
 
 const {
   RedisHealthCheckTimedOut,
@@ -18,6 +18,34 @@ const HOST = os.hostname()
 const PID = process.pid
 const RND = crypto.randomBytes(4).toString('hex')
 let COUNT = 0
+
+function createClient(opts = {}) {
+  const standardOpts = Object.assign({}, opts)
+  delete standardOpts.key_schema
+
+  if (standardOpts.retry_max_delay == null) {
+    standardOpts.retry_max_delay = 5000 // ms
+  }
+
+  let client
+  if (opts.cluster) {
+    delete standardOpts.cluster
+    client = new Redis.Cluster(opts.cluster, standardOpts)
+  } else {
+    client = new Redis(standardOpts)
+  }
+  monkeyPatchIoRedisExec(client)
+  client.healthCheck = (callback) => {
+    if (callback) {
+      // callback based invocation
+      healthCheck(client).then(callback).catch(callback)
+    } else {
+      // Promise based invocation
+      return healthCheck(client)
+    }
+  }
+  return client
+}
 
 async function healthCheck(client) {
   // check the redis connection by storing and retrieving a unique key/value pair
@@ -124,27 +152,5 @@ function monkeyPatchIoRedisExec(client) {
 }
 
 module.exports = {
-  createClient: (opts = {}) => {
-    const standardOpts = Object.assign({}, opts)
-    delete standardOpts.key_schema
-
-    let client
-    if (opts.cluster) {
-      delete standardOpts.cluster
-      client = new IORedis.Cluster(opts.cluster, standardOpts)
-    } else {
-      client = new IORedis(standardOpts)
-    }
-    monkeyPatchIoRedisExec(client)
-    client.healthCheck = (callback) => {
-      if (callback) {
-        // callback based invocation
-        healthCheck(client).then(callback).catch(callback)
-      } else {
-        // Promise based invocation
-        return healthCheck(client)
-      }
-    }
-    return client
-  }
+  createClient,
 }
