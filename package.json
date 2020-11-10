@@ -5,11 +5,14 @@
   "main": "index.js",
   "author": "ShareLaTeX",
   "license": "ISC",
+  "peerDependencies": {
+    "@overleaf/o-error": "^3.1.0"
+  },
   "dependencies": {
-    "@overleaf/o-error": "^3.1.0",
     "ioredis": "~4.17.3"
   },
   "devDependencies": {
-    "logger-sharelatex": "^2.2.0"
+    "@overleaf/o-error": "^3.1.0",
+    "logger-sharelatex": "https://github.com/das7pad/logger-sharelatex/archive/16a8d66c59318ca4b3c236136fd9603ee2edb4f0.tar.gz"
   }
 }
