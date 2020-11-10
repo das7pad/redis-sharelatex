@@ -8,7 +8,7 @@
 $ while true;do seq 0 8 | xargs -I% redis-cli -p 700% FLUSHALL > /dev/null;done
 */
 
-const redis = require('../../')
+const redis = require('../../../')
 const logger = require('logger-sharelatex')
 
 const rclient = redis.createClient({
