@@ -1,4 +1,3 @@
-const assert = require('assert')
 const crypto = require('crypto')
 const os = require('os')
 const { promisify } = require('util')
@@ -82,10 +81,9 @@ async function runCheck(client, uniqueToken, context) {
     .catch((err) => {
       throw new RedisHealthCheckWriteError('write errored', context, err)
     })
-  try {
-    assert.strictEqual(writeAck, 'OK')
-  } catch (err) {
-    throw new RedisHealthCheckWriteError('write failed', context, err)
+  if (writeAck !== 'OK') {
+    context.writeAck = writeAck
+    throw new RedisHealthCheckWriteError('write failed', context)
   }
 
   // check that we can retrieve the unique key/value pair
@@ -98,11 +96,13 @@ async function runCheck(client, uniqueToken, context) {
     .catch((err) => {
       throw new RedisHealthCheckVerifyError('read/delete errored', context, err)
     })
-  try {
-    assert.strictEqual(roundTrippedHealthCheckValue, healthCheckValue)
-    assert.strictEqual(deleteAck, 1)
-  } catch (err) {
-    throw new RedisHealthCheckVerifyError('read/delete failed', context, err)
+  if (roundTrippedHealthCheckValue !== healthCheckValue) {
+    context.roundTrippedHealthCheckValue = roundTrippedHealthCheckValue
+    throw new RedisHealthCheckVerifyError('read failed', context)
+  }
+  if (deleteAck !== 1) {
+    context.deleteAck = deleteAck
+    throw new RedisHealthCheckVerifyError('delete failed', context)
   }
 }
 
