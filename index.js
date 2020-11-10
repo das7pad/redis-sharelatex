@@ -18,7 +18,7 @@ const PID = process.pid
 const RND = crypto.randomBytes(4).toString('hex')
 let COUNT = 0
 
-function createClient(opts = {}) {
+function createClient(opts) {
   const standardOpts = Object.assign({}, opts)
   delete standardOpts.key_schema
 
