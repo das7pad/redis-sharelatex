@@ -8,5 +8,8 @@
   "dependencies": {
     "@overleaf/o-error": "^3.1.0",
     "ioredis": "~4.17.3"
+  },
+  "devDependencies": {
+    "logger-sharelatex": "^2.2.0"
   }
 }

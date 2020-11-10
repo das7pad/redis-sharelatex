@@ -9,6 +9,7 @@ $ while true;do seq 0 8 | xargs -I% redis-cli -p 700% FLUSHALL > /dev/null;done
 */
 
 const redis = require('../../')
+const logger = require('logger-sharelatex')
 
 const rclient = redis.createClient({
   cluster: Array.from({ length: 9 }).map((value, index) => {
@@ -19,9 +20,9 @@ const rclient = redis.createClient({
 setInterval(() => {
   rclient.healthCheck((err) => {
     if (err) {
-      console.error('HEALTH CHECK FAILED', JSON.stringify(err, null, 2))
+      logger.error({ err }, 'HEALTH CHECK FAILED')
     } else {
-      console.log('HEALTH CHECK OK')
+      logger.log('HEALTH CHECK OK')
     }
   })
 }, 1000)
