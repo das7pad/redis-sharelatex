@@ -56,18 +56,11 @@ async function healthCheck(client) {
     stage: 'add context for a timeout'
   }
 
-  let healthCheckDeadline
-  await Promise.race([
-    new Promise((resolve, reject) => {
-      healthCheckDeadline = setTimeout(() => {
-        context.timeout = HEARTBEAT_TIMEOUT
-        reject(new RedisHealthCheckTimedOut('timeout', context))
-      }, HEARTBEAT_TIMEOUT)
-    }),
-    runCheck(client, uniqueToken, context).finally(() =>
-      clearTimeout(healthCheckDeadline)
-    )
-  ])
+  await runWithTimeout({
+    runner: runCheck(client, uniqueToken, context),
+    timeout: HEARTBEAT_TIMEOUT,
+    context
+  })
 }
 
 async function runCheck(client, uniqueToken, context) {
@@ -149,6 +142,20 @@ function monkeyPatchIoRedisExec(client) {
     }
     return multi
   }
+}
+
+async function runWithTimeout({ runner, timeout, context }) {
+  let healthCheckDeadline
+  await Promise.race([
+    new Promise((resolve, reject) => {
+      healthCheckDeadline = setTimeout(() => {
+        // attach the timeout when hitting the timeout only
+        context.timeout = timeout
+        reject(new RedisHealthCheckTimedOut('timeout', context))
+      }, timeout)
+    }),
+    runner.finally(() => clearTimeout(healthCheckDeadline))
+  ])
 }
 
 module.exports = {
